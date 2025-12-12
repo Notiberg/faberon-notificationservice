@@ -37,9 +37,10 @@ COPY --from=builder /app/config.toml .
 # Copy migration scripts
 COPY migrations/ ./migrations/
 COPY migrate.sh ./
+COPY entrypoint.sh ./
 
-# Make migrate.sh executable
-RUN chmod +x ./migrate.sh
+# Make scripts executable
+RUN chmod +x ./migrate.sh ./entrypoint.sh
 
 # Create logs directory
 RUN mkdir -p /app/logs
@@ -47,8 +48,5 @@ RUN mkdir -p /app/logs
 # Expose port
 EXPOSE 8085
 
-# Create entrypoint script that runs migrations then starts the app
-RUN echo '#!/bin/bash\nset -e\necho "Running database migrations..."\n./migrate.sh\necho "Starting application..."\nexec ./main' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
-
 # Run the application with entrypoint
-CMD ["/app/entrypoint.sh"]
+CMD ["./entrypoint.sh"]
