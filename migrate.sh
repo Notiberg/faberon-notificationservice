@@ -53,13 +53,31 @@ fi
 
 # Create database if it doesn't exist
 echo "Checking if database '$DB_NAME' exists..."
-if ! psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d postgres -c "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" 2>/dev/null | grep -q 1; then
+DB_EXISTS=$(psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d postgres -t -c "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME';" 2>&1)
+
+if [ -z "$DB_EXISTS" ] || [ "$DB_EXISTS" != "1" ]; then
   echo "Database '$DB_NAME' does not exist. Creating it..."
-  psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d postgres -c "CREATE DATABASE $DB_NAME;"
-  echo "Database '$DB_NAME' created successfully!"
+  CREATE_RESULT=$(psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d postgres -c "CREATE DATABASE $DB_NAME;" 2>&1)
+  if [ $? -eq 0 ]; then
+    echo "Database '$DB_NAME' created successfully!"
+    sleep 2  # Wait a moment for the database to be ready
+  else
+    echo "Failed to create database: $CREATE_RESULT"
+    rm -f "$PGPASS_FILE"
+    exit 1
+  fi
 else
   echo "Database '$DB_NAME' already exists."
 fi
+
+# Verify database exists before running migrations
+echo "Verifying database '$DB_NAME' is accessible..."
+if ! psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "SELECT 1" > /dev/null 2>&1; then
+  echo "ERROR: Cannot connect to database '$DB_NAME'"
+  rm -f "$PGPASS_FILE"
+  exit 1
+fi
+echo "Database '$DB_NAME' is ready for migrations!"
 
 # Run migrations
 echo ""
