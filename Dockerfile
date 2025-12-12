@@ -34,6 +34,9 @@ COPY --from=builder /app/main .
 # Copy config file
 COPY --from=builder /app/config.toml .
 
+# Copy static files (welcome images)
+COPY --from=builder /app/static ./static
+
 # Copy migration scripts
 COPY migrations/ ./migrations/
 COPY migrate.sh ./
