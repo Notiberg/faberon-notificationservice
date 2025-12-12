@@ -58,7 +58,7 @@ func (uc *UseCase) ensureUserExists(ctx context.Context, from *tgbotapi.User) er
 	tgUserID := from.ID
 
 	// Проверяем, существует ли пользователь
-	_, err := uc.userServiceClient.GetUser(ctx, tgUserID)
+	user, err := uc.userServiceClient.GetUser(ctx, tgUserID)
 	if err == nil {
 		return nil // Пользователь уже существует
 	}
@@ -68,7 +68,7 @@ func (uc *UseCase) ensureUserExists(ctx context.Context, from *tgbotapi.User) er
 		return fmt.Errorf("check user existence: %w", err)
 	}
 
-	// Формируем имя пользователя
+	// Формируем имя пользователя из Telegram данных
 	userName := from.FirstName
 	if from.LastName != "" {
 		userName += " " + from.LastName
@@ -89,8 +89,19 @@ func (uc *UseCase) ensureUserExists(ctx context.Context, from *tgbotapi.User) er
 		Role:     DefaultUserRole,
 	}
 
-	if _, err := uc.userServiceClient.CreateUser(ctx, createReq); err != nil {
+	user, err = uc.userServiceClient.CreateUser(ctx, createReq)
+	if err != nil {
 		return fmt.Errorf("create user '%s': %w", userName, err)
+	}
+
+	// После создания пользователя загружаем его данные с бэкэнда
+	// чтобы получить актуальное имя из профиля
+	if user != nil {
+		user, err = uc.userServiceClient.GetUser(ctx, tgUserID)
+		if err != nil {
+			// Если не удалось загрузить - не критично, пользователь уже создан
+			return nil
+		}
 	}
 
 	return nil
