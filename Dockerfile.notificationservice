@@ -18,11 +18,21 @@ FROM alpine:latest
 
 WORKDIR /app
 
+# Install PostgreSQL client for migrations
+RUN apk add --no-cache postgresql-client bash
+
 # Copy binary from builder
 COPY --from=builder /app/main .
 
 # Copy config file
 COPY --from=builder /app/config.toml .
+
+# Copy migration files
+COPY migrations/ ./migrations/
+
+# Copy migration script
+COPY migrate.sh ./
+RUN chmod +x ./migrate.sh
 
 # Create logs directory
 RUN mkdir -p /app/logs
@@ -30,5 +40,8 @@ RUN mkdir -p /app/logs
 # Expose port
 EXPOSE 8085
 
-# Run the application
-CMD ["./main"]
+# Create entrypoint script that runs migrations then starts the app
+RUN echo '#!/bin/bash\nset -e\necho "Running database migrations..."\n./migrate.sh\necho "Starting application..."\nexec ./main' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+
+# Run the application with entrypoint
+CMD ["/app/entrypoint.sh"]

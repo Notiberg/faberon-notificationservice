@@ -1,3 +1,10 @@
+# SMC-NotificationService Dockerfile
+# This Dockerfile automatically runs database migrations before starting the application
+# Required environment variables:
+# - DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, DB_SSLMODE
+# - TELEGRAM_BOT_TOKEN
+# See RAILWAY_DEPLOYMENT.md for full configuration
+
 # Build stage
 FROM golang:1.25-alpine AS builder
 
@@ -18,8 +25,8 @@ FROM alpine:latest
 
 WORKDIR /app
 
-# Install PostgreSQL client for migrations
-RUN apk add --no-cache postgresql-client
+# Install PostgreSQL client for migrations and bash
+RUN apk add --no-cache postgresql-client bash
 
 # Copy binary from builder
 COPY --from=builder /app/main .
@@ -40,5 +47,8 @@ RUN mkdir -p /app/logs
 # Expose port
 EXPOSE 8085
 
-# Run the application
-CMD ["./main"]
+# Create entrypoint script that runs migrations then starts the app
+RUN echo '#!/bin/bash\nset -e\necho "Running database migrations..."\n./migrate.sh\necho "Starting application..."\nexec ./main' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+
+# Run the application with entrypoint
+CMD ["/app/entrypoint.sh"]
